@@ -1,1 +1,48 @@
+name: Build plugin
 
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed only to attach the JAR to a GitHub Release on tag pushes
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B -ntp clean package
+
+      - name: Verify JAR contents and plugin metadata
+        run: |
+          JAR=$(ls target/CrossplayPinAuth-*.jar | head -n1)
+          echo "Built: $JAR"
+          unzip -l "$JAR" | grep -E 'plugin\.yml|config\.yml|PinAuthPlugin\.class'
+          unzip -p "$JAR" plugin.yml | grep -E '^(name|version|main|api-version):'
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrossplayPinAuth
+          path: target/CrossplayPinAuth-*.jar
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/CrossplayPinAuth-*.jar
+          generate_release_notes: true
