@@ -1,1 +1,139 @@
+# ============================================================
+#  CrossplayPinAuth configuration
+#  Colour codes use '&' (e.g. &a, &l) and hex as &#RRGGBB.
+#  Use \n for line breaks inside messages.
+#  Invalid values are replaced by safe defaults (a warning is
+#  printed to the console). Use /pinauth reload to apply changes.
+# ============================================================
 
+# ---- PIN rules -------------------------------------------------
+min-pin-length: 6          # 4-8, must not exceed the number of gui.layout.pin-slots
+max-pin-length: 6
+
+# ---- Login protection -----------------------------------------
+max-login-attempts: 4            # wrong PINs before the player is disconnected + locked out
+lockout-duration-seconds: 300    # how long the account stays locked after too many failures (0 = kick only)
+attempt-cooldown-millis: 1500    # minimum delay between two PIN submissions (anti-guessing)
+login-timeout-seconds: 0         # 0 = no timeout
+max-registration-attempts: 5     # failed confirmations during registration before a kick (0 = unlimited)
+
+# ---- Behaviour -------------------------------------------------
+allow-bedrock-players: true
+require-pin-confirmation: true
+freeze-unauthenticated-players: true
+reopen-gui-on-close: true
+max-gui-closes: 8                # kick after this many closes of the keypad (0 = never kick)
+block-duplicate-login: true      # refuse a 2nd connection with the same UUID (stops offline-mode kick-spam)
+click-sounds: true
+hash-iterations: 210000          # PBKDF2-HMAC-SHA256 iterations for NEW hashes (min 50000)
+database-file: accounts.db       # inside the plugin folder (restart required)
+
+# Commands unauthenticated players may use (no leading slash)
+allowed-commands:
+  - pinlogin
+  - pin
+
+# ---- GUI -------------------------------------------------------
+gui:
+  titles:
+    login: "&8Kodeshi SMP | Login"
+    register: "&8Kodeshi SMP | Register"
+    change: "&8Kodeshi SMP | Change PIN"
+  prompts:
+    login: "&e&lENTER PIN"
+    register-enter: "&a&lCREATE A PIN"
+    register-confirm: "&a&lCONFIRM YOUR PIN"
+    change-old: "&e&lENTER CURRENT PIN"
+    change-new: "&a&lENTER NEW PIN"
+    change-confirm: "&a&lCONFIRM NEW PIN"
+  info-lore:
+    - "&7Account: &f{player}"
+    - "&7Use the keypad below."
+  show-digits: false             # true = show typed digits in the PIN slots (not recommended)
+  cancel-button-enabled: true    # cancel button kicks (login/register) or aborts (change PIN)
+
+  materials:
+    filler: GRAY_STAINED_GLASS_PANE
+    info: PLAYER_HEAD
+    digit: WHITE_CONCRETE
+    clear: RED_CONCRETE
+    backspace: ORANGE_CONCRETE
+    confirm: LIME_CONCRETE
+    cancel: BARRIER
+    pin-empty: LIGHT_GRAY_STAINED_GLASS_PANE
+    pin-filled: LIME_STAINED_GLASS_PANE
+
+  names:
+    clear: "&c&lCLR"
+    backspace: "&6&lDEL"
+    confirm: "&a&lOK"
+    cancel: "&c&lCANCEL"
+    pin-empty: "&7_"
+    pin-filled: "&a&l*"
+
+  # Inventory is a 6-row chest (slots 0-53). Slots must be unique.
+  layout:
+    info: 4
+    pin-slots: [11, 12, 13, 14, 15, 16]
+    digits:
+      0: 49
+      1: 21
+      2: 22
+      3: 23
+      4: 30
+      5: 31
+      6: 32
+      7: 39
+      8: 40
+      9: 41
+    clear: 48
+    backspace: 50
+    confirm: 53
+    cancel: 45
+
+# ---- Messages --------------------------------------------------
+messages:
+  prefix: "&8[&6Kodeshi&8] &r"
+  welcome: "&eWelcome to &6Kodeshi SMP&e! Please authenticate with your PIN."
+  register-start: "&aNo PIN found for this account. Create a &e6-digit PIN&a with the keypad."
+  register-confirm-start: "&7Enter the same PIN again to confirm."
+  register-mismatch: "&cThe PINs did not match. Please start again."
+  register-success: "&aPIN registered. You are now logged in!"
+  register-too-many-failures: "&cToo many failed registration attempts.\n&cPlease reconnect and try again."
+  already-registered: "&cThis account already has a PIN. Please log in."
+  login-start: "&7Enter your PIN with the keypad."
+  login-success: "&aAuthenticated. Welcome back!"
+  login-wrong-pin: "&cIncorrect PIN. You have &e{remaining}&c attempt(s) remaining."
+  login-too-many-kick: "&cToo many incorrect PIN attempts.\n&cYou have been disconnected."
+  login-locked-kick: "&cThis account is temporarily locked.\n&cTry again in &e{time}&c."
+  pin-too-short: "&cYour PIN must be {length} digits long."
+  timeout-kick: "&cLogin timed out. Please reconnect."
+  gui-closed-kick: "&cYou must complete authentication to play."
+  gui-closed-hint: "&7Use &e/pinlogin&7 to re-open the PIN keypad."
+  cancel-kick: "&7Authentication cancelled."
+  bedrock-disabled-kick: "&cBedrock players are not allowed on this server."
+  auth-unavailable-kick: "&cAuthentication is temporarily unavailable.\n&cPlease try again later."
+  duplicate-login-kick: "&cThis account is already connected."
+  plugin-disabled-kick: "&cAuthentication was restarted. Please reconnect."
+  command-blocked: "&cYou must log in before using commands."
+  slow-down: "&cPlease wait a moment before trying again."
+  already-authenticated: "&aYou are already logged in."
+  not-in-session: "&cNothing to do right now."
+  changepin-start: "&7Enter your &ecurrent PIN&7 first."
+  changepin-new-start: "&aCurrent PIN accepted. Enter your &enew PIN&a."
+  changepin-confirm-start: "&7Enter the new PIN again to confirm."
+  changepin-mismatch: "&cThe new PINs did not match. Enter your new PIN again."
+  changepin-success: "&aYour PIN has been changed."
+  changepin-cancelled: "&7PIN change cancelled."
+  admin-no-permission: "&cYou do not have permission to do that."
+  admin-usage: "&cUsage: /{label} <player|uuid>"
+  admin-reset-success: "&aPIN cleared for &e{player}&a. They must register a new PIN."
+  admin-reset-notify: "&cAn administrator reset your PIN. Please create a new one."
+  admin-player-not-found: "&cNo account found for &e{player}&c."
+  admin-multiple: "&cMultiple accounts match. Use a UUID instead:\n{list}"
+  admin-error: "&cA database error occurred. See the console."
+  status-format: "&6PIN status for &e{player}&6:\n&7UUID: &f{uuid}\n&7PIN: {pin}\n&7Status: &f{status}\n&7Edition: &f{edition}\n&7Session: &f{session}\n&7Lockout: &f{lock} &7(failed attempts: &f{failed}&7)"
+  reload-success: "&aConfiguration reloaded."
+  reload-failed: "&cReload failed. See the console. The previous settings stay active."
+  player-only: "&cThis command can only be used by a player."
+  help: "&6CrossplayPinAuth commands:\n&e/pinreset <player|uuid> &7- clear a PIN, force re-registration\n&e/clearpin <player|uuid> &7- same as /pinreset\n&e/pinstatus <player|uuid> &7- show PIN status\n&e/pinauth reload &7- reload config\n&e/changepin &7- change your own PIN (needs current PIN)\n&e/pinlogin &7- re-open the keypad"

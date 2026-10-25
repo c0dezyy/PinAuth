@@ -1,0 +1,45 @@
+name: CrossplayPinAuth
+version: '${project.version}'
+main: com.kodeshi.pinauth.PinAuthPlugin
+api-version: '1.21'
+description: Six-digit PIN authentication with an inventory keypad for Java and Bedrock (Geyser/Floodgate) players.
+authors: [Kodeshi]
+softdepend: [floodgate, Geyser-Spigot]
+
+commands:
+  pinreset:
+    description: Clear a player's PIN and force them to register a new one.
+    usage: /pinreset <player|uuid>
+    permission: pinauth.admin
+  clearpin:
+    description: Alias-style command that clears a player's PIN (same as /pinreset).
+    usage: /clearpin <player|uuid>
+    permission: pinauth.admin
+  pinstatus:
+    description: Show whether a player has a registered PIN.
+    usage: /pinstatus <player|uuid>
+    permission: pinauth.admin
+  pinauth:
+    description: Plugin administration (help, reload).
+    usage: /pinauth <help|reload>
+  pinlogin:
+    description: Re-open the PIN keypad if you closed it.
+    usage: /pinlogin
+    aliases: [pin]
+  changepin:
+    description: Change your PIN (requires your current PIN).
+    usage: /changepin
+    permission: pinauth.changepin
+
+permissions:
+  pinauth.admin:
+    description: Administrative commands (/pinreset, /clearpin, /pinstatus, /pinauth help).
+    default: op
+    children:
+      pinauth.reload: true
+  pinauth.reload:
+    description: Reload the configuration (/pinauth reload).
+    default: op
+  pinauth.changepin:
+    description: Change your own PIN.
+    default: true
