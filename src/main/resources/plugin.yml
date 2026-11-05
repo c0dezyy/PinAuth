@@ -1,45 +1,47 @@
-name: CrossplayPinAuth
+name: PinAuth
 version: '${project.version}'
 main: com.kodeshi.pinauth.PinAuthPlugin
 api-version: '1.21'
-description: Six-digit PIN authentication with an inventory keypad for Java and Bedrock (Geyser/Floodgate) players.
+description: Crossplay 6-digit PIN authentication with an inventory keypad (Java + Bedrock via Geyser/Floodgate)
 authors: [Kodeshi]
 softdepend: [floodgate, Geyser-Spigot]
+libraries:
+  - org.xerial:sqlite-jdbc:3.46.1.3
 
 commands:
   pinreset:
-    description: Clear a player's PIN and force them to register a new one.
-    usage: /pinreset <player|uuid>
+    description: Clear a player's PIN and force them to register a new one
+    usage: /pinreset <player>
     permission: pinauth.admin
   clearpin:
-    description: Alias-style command that clears a player's PIN (same as /pinreset).
-    usage: /clearpin <player|uuid>
+    description: Alias-style command that clears a player's PIN
+    usage: /clearpin <player>
     permission: pinauth.admin
   pinstatus:
-    description: Show whether a player has a registered PIN.
-    usage: /pinstatus <player|uuid>
+    description: Show whether a player has a registered PIN
+    usage: /pinstatus <player>
     permission: pinauth.admin
   pinauth:
-    description: Plugin administration (help, reload).
-    usage: /pinauth <help|reload>
-  pinlogin:
-    description: Re-open the PIN keypad if you closed it.
-    usage: /pinlogin
-    aliases: [pin]
+    description: PinAuth administration (reload, help)
+    usage: /pinauth <reload|help>
+    permission: pinauth.admin
+  pin:
+    description: Reopen the PIN window
+    usage: /pin
   changepin:
-    description: Change your PIN (requires your current PIN).
+    description: Change your PIN (requires your current PIN)
     usage: /changepin
-    permission: pinauth.changepin
+    permission: pinauth.change
 
 permissions:
   pinauth.admin:
-    description: Administrative commands (/pinreset, /clearpin, /pinstatus, /pinauth help).
+    description: Administrative commands (/pinreset, /clearpin, /pinstatus, /pinauth help)
     default: op
     children:
       pinauth.reload: true
   pinauth.reload:
-    description: Reload the configuration (/pinauth reload).
+    description: Reload the configuration (/pinauth reload)
     default: op
-  pinauth.changepin:
-    description: Change your own PIN.
+  pinauth.change:
+    description: Change your own PIN with /changepin
     default: true
