@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # needed only for attaching the JAR to a release on tag pushes
+  contents: write
 
 jobs:
   build:
@@ -28,22 +28,28 @@ jobs:
 
       - name: Verify JAR contents
         run: |
-          JAR=$(ls target/PinAuth-*.jar | head -n 1)
+          echo "Contents of target/:"
+          ls -la target
+          JAR=$(ls target/*.jar 2>/dev/null | grep -v '^target/original-' | head -n 1)
+          if [ -z "$JAR" ]; then echo "No JAR found in target/"; exit 1; fi
           echo "Built: $JAR"
           unzip -l "$JAR" | grep -E "plugin.yml|config.yml|com/kodeshi/pinauth/PinAuthPlugin.class"
           unzip -p "$JAR" plugin.yml | grep -E "^(name|version|main|api-version):"
-          # plugin.yml must be filtered (no unresolved ${...} placeholders)
           if unzip -p "$JAR" plugin.yml | grep -q '\${'; then echo "Unresolved placeholder in plugin.yml"; exit 1; fi
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: PinAuth-jar
-          path: target/PinAuth-*.jar
+          path: |
+            target/*.jar
+            !target/original-*.jar
           if-no-files-found: error
 
       - name: Attach JAR to GitHub release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: target/PinAuth-*.jar
+          files: |
+            target/*.jar
+            !target/original-*.jar
