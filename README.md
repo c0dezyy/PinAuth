@@ -1,138 +1,107 @@
-# CrossplayPinAuth
+# PinAuth – Crossplay PIN authentication for Paper (Kodeshi SMP)
 
-A Paper plugin that makes every player log in with a **6-digit PIN** entered on an **inventory keypad**.
-The same chest GUI works for Java players and for Bedrock players joining through **GeyserMC + Floodgate**.
-No client mods, no web server. Data is stored in SQLite, keyed by **UUID**.
-
-- GUI title: `Kodeshi SMP | Login` (all titles/materials/slots/messages configurable)
-- PIN registration with confirmation, login, **change PIN (old PIN required)**
-- 4 wrong attempts (configurable) → disconnect + temporary lockout that survives reconnecting
-- Admin commands to reset/clear PINs (online or offline), status, reload
-- Unauthenticated players are frozen and cannot interact with the world, items, chat or commands
+Six-digit PIN registration and login through a **plain chest-inventory keypad**, for Java Edition and
+Bedrock Edition (via GeyserMC + Floodgate). SQLite storage, PBKDF2 hashing with unique salts, persistent
+lockouts, admin reset commands, and a `/changepin` command that requires the old PIN.
 
 ## Requirements
+- Paper 1.21.x, Java 21
+- Optional: Geyser + Floodgate for Bedrock players
+- Internet access on first start (Paper downloads the SQLite JDBC driver listed under `libraries:` in plugin.yml).
+  For an offline host, drop `sqlite-jdbc` into the server's `libraries` folder or shade it (see "Build").
 
-| Item | Version |
-|------|---------|
-| Server | Paper 1.21.x (built against `1.21.4-R0.1-SNAPSHOT`, `api-version: 1.21`) |
-| Java | 21 |
-| Bedrock support (optional) | GeyserMC + Floodgate |
-| Database | SQLite JDBC, which Paper already bundles (no extra download) |
+## Build
+```
+mvn clean package
+```
+Output: `target/PinAuth-1.0.0.jar`. To target another 1.21.x API: `mvn clean package -Dpaper.version=1.21.8-R0.1-SNAPSHOT`.
+Verify the metadata: `unzip -l target/PinAuth-1.0.0.jar | grep -E "plugin.yml|config.yml"`.
 
-## Getting the JAR (GitHub Actions)
+### Build with GitHub Actions (no local Maven needed)
+1. Push this folder to a GitHub repository (the workflow is `.github/workflows/build.yml`).
+2. Open the **Actions** tab → "Build PinAuth" → latest run → download the **PinAuth-jar** artifact.
+3. Optional: push a tag such as `v1.0.0` and the JAR is attached to a GitHub Release automatically.
+The workflow also verifies that `plugin.yml` and `config.yml` are inside the JAR.
 
-1. Create an empty GitHub repository and push this folder:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/<you>/<repo>.git
-   git push -u origin main
-   ```
-2. Open the **Actions** tab. The *Build plugin* workflow (`.github/workflows/build.yml`) runs on every push,
-   pull request and manual run (*Run workflow*). It builds with Maven + JDK 21, checks that the JAR contains
-   `plugin.yml`, `config.yml` and the main class, and uploads it as the **CrossplayPinAuth** artifact.
-3. Open the finished run and download the artifact (a zip containing `CrossplayPinAuth-1.0.0.jar`).
-4. **Releases (optional):** push a tag and the JAR is attached to a GitHub Release automatically:
-   ```bash
-   git tag v1.0.0 && git push origin v1.0.0
-   ```
-
-Build locally instead: `mvn clean package` → `target/CrossplayPinAuth-1.0.0.jar`.
-Target another Paper version: `mvn clean package -Dpaper.version=1.21.8-R0.1-SNAPSHOT`.
-
-## Installation
-
-1. Put the JAR into `plugins/` and start the server once.
-2. Edit `plugins/CrossplayPinAuth/config.yml` if you like, then run `/pinauth reload`.
-3. **Back up `accounts.db` together with `secret.key`.** PINs are mixed with this server-side secret before
-   hashing; without it existing PINs cannot be verified (admins would need to `/pinreset` everyone).
-
-### Geyser / Floodgate setup
-
-- Install **Geyser** and **Floodgate** on the Paper server (or Geyser standalone/proxy with Floodgate on both).
-  Floodgate is detected automatically (soft dependency). If it is missing you get a startup warning and
-  Bedrock players are detected with a UUID heuristic instead.
-- Bedrock accounts get Floodgate UUIDs and a username prefix (default `.`), so a Java player `Steve` and a Bedrock
-  player `.Steve` are **separate accounts**. Records are keyed by UUID, never by name.
-- If Floodgate is not used, set Geyser `auth-type: offline` and note that Bedrock players are then identified by
-  an offline-style UUID derived from the name.
-- Set `allow-bedrock-players: false` to refuse Bedrock players.
-- Offline-mode (cracked) Java servers: anyone can claim any name, so a PIN is the only protection. The plugin refuses
-  a second connection with the same UUID (`block-duplicate-login`) so nobody can kick a logged-in player.
-  Online-mode servers work too; the PIN is then a second factor.
-
-## Commands
-
-| Command | Permission | Description |
-|---------|-----------|-------------|
-| `/pinreset <player\|uuid>` | `pinauth.admin` | Clear the PIN, mark `NEEDS_REGISTRATION`. Online: session revoked immediately and the registration GUI opens. Offline: applied at next join. |
-| `/clearpin <player\|uuid>` | `pinauth.admin` | Same operation as `/pinreset`. Other player data is untouched. |
-| `/pinstatus <player\|uuid>` | `pinauth.admin` | Shows registration status, session state, lockout and failed count (never the hash). |
-| `/pinauth reload` | `pinauth.reload` | Re-reads `config.yml` safely (invalid values fall back to defaults). |
-| `/pinauth help` | `pinauth.admin` or `pinauth.reload` | Lists commands. |
-| `/changepin` | `pinauth.changepin` (default: everyone) | Keypad asks for the **current PIN**, then the new PIN, then confirmation. |
-| `/pinlogin` (alias `/pin`) | everyone | Re-opens the keypad if it was closed. Usable before logging in. |
-
-Offline players are looked up by the username stored when they last joined (case-insensitive). If several accounts
-share a name, the command lists their UUIDs and you re-run it with the UUID. Tab completion lists online players.
-Every reset is logged to the console (admin, target name, UUID), never PINs or hashes.
-
-## Permissions
-
-| Permission | Default | Grants |
-|------------|---------|--------|
-| `pinauth.admin` | op | `/pinreset`, `/clearpin`, `/pinstatus`, `/pinauth help` (also includes `pinauth.reload`) |
-| `pinauth.reload` | op | `/pinauth reload` |
-| `pinauth.changepin` | everyone | `/changepin` |
-
-Permissions are checked server-side in the command handlers as well as via `plugin.yml`.
+## Install
+1. Put the JAR in `plugins/`, start the server once, edit `plugins/PinAuth/config.yml`, then `/pinauth reload`.
+2. Back up **both** `plugins/PinAuth/accounts.db` and `plugins/PinAuth/pepper.key` (see Security).
 
 ## How it works
+- New account → welcome message → "Kodeshi SMP | Register" keypad → enter PIN → "Confirm PIN" keypad → saved and logged in.
+- Returning account → "Kodeshi SMP | Login" keypad. Digits are never displayed, only filled/empty slots.
+- Buttons: digits 0-9, Backspace, Clear, Confirm, Leave server (kicks safely). All positions/materials/texts are configurable.
+- Closing the window reopens it; after `max-gui-closes` closes the player is kicked. `/pin` reopens it manually.
+- `/changepin`: asks for the **current PIN first**, then new PIN + confirmation. Closing the window cancels the change.
 
-- **Default deny.** A player is unauthenticated unless their UUID is in an in-memory authenticated set, which is
-  cleared on every disconnect (so reconnecting or changing dimension never bypasses login).
-- **Restrictions before login** (config `freeze-unauthenticated-players` controls movement): no movement, teleport,
-  block break/place, buckets, interaction, attacking/being damaged, item pickup/drop/swap/consume, hunger, mob
-  targeting, vehicles, beds, chat, opening other inventories, and all commands except `allowed-commands`. Commands
-  are also hidden from tab completion. Only the plugin's own keypad inventory is exempt.
-- **Keypad.** Every click/drag in the keypad (or in the player's inventory while it is open) is cancelled and
-  interpreted as a button press, so nothing can be moved or taken. Closing it re-opens it (`reopen-gui-on-close`);
-  after `max-gui-closes` closes the player is kicked. The cancel button kicks (or aborts a PIN change).
-- **Attempts.** Wrong PINs are counted **in the database**. At `max-login-attempts` the player is disconnected and
-  the account is locked for `lockout-duration-seconds`; the lock is checked at pre-login, so reconnecting does not
-  help. Submissions are also rate-limited (`attempt-cooldown-millis`) and one verification runs at a time.
-  Nobody is permanently banned.
-- **Timeout.** `login-timeout-seconds: 0` (default) = no timeout. Any positive value kicks after that many seconds.
-- **Threads.** Hashing runs on a 2-thread pool, SQLite on a single dedicated thread. The main thread never waits
-  for either (pre-login runs on Paper's async thread).
-- **Fails closed.** If the database or `secret.key` cannot be initialised, all connections are refused with a
-  clear console error instead of letting players in unauthenticated.
+## Commands
+| Command | Permission | Description |
+|---|---|---|
+| `/pinreset <player>` | `pinauth.admin` | Clear PIN, revoke session, require new registration (online: immediately; offline: next join) |
+| `/clearpin <player>` | `pinauth.admin` | Same operation as `/pinreset` |
+| `/pinstatus <player>` | `pinauth.admin` | Registered?, online state, last login, lockout |
+| `/pinauth reload` | `pinauth.reload` | Reload config safely (invalid YAML keeps old settings) |
+| `/pinauth help` | `pinauth.admin` | Command list |
+| `/changepin` | `pinauth.change` (default: everyone) | Change own PIN, needs old PIN |
+| `/pin` | none | Reopen the PIN window (only allowed command before login) |
 
-## Storage
+`<player>` accepts an online name, a name stored in the database (offline), or a UUID. If a name matches several
+accounts you are asked to use the UUID. Tab completion lists online players.
 
-`plugins/CrossplayPinAuth/accounts.db` (SQLite, WAL), table `accounts`:
-`uuid` (PK), `username`, `pin_hash`, `status` (`REGISTERED` / `NEEDS_REGISTRATION`), `registered_at`, `last_login`,
-`failed_count`, `lockout_until`, `edition` (`JAVA` / `BEDROCK`). Index on `username COLLATE NOCASE`.
-The schema is versioned with `PRAGMA user_version`; migrations run automatically at startup, each in a transaction.
-All SQL uses prepared statements.
+## Permissions
+- `pinauth.admin` (default **op**) – admin commands; includes `pinauth.reload`.
+- `pinauth.reload` (default **op**) – `/pinauth reload`.
+- `pinauth.change` (default **true**) – `/changepin`.
 
-Hash format: `pbkdf2-sha256$iterations$salt$hash`. The PIN is first HMAC-SHA256'd with `secret.key`, then PBKDF2 with a
-unique random 16-byte salt (210,000 iterations by default). PINs and hashes are never logged.
+## Trusted-IP auto login (optional)
+In `config.yml`: set `ip-exemptions.enabled: true` and add entries `"name-or-uuid=ip"`. A player skips the PIN screen only when
+**both** the account and the IP match. Do not list `127.0.0.1` or a proxy/Geyser IP (ignored with a warning). IPs can be shared
+(same home network) and names can be claimed on offline-mode servers, so prefer UUID entries. Reload with `/pinauth reload`.
+
+## Failed attempts, lockouts, timeouts
+- `max-login-attempts: 4` → 3, 2, 1 attempts remaining, 4th wrong PIN disconnects ("Too many incorrect PIN attempts. You have been disconnected.").
+- The counter is stored in SQLite. After the last attempt the account is locked for `lockout-duration-seconds` (default 300);
+  reconnecting during the lockout is refused with the remaining time. Nobody is ever banned.
+- `attempt-cooldown-millis` throttles PIN checks; hashing runs off the main thread; one check at a time per player.
+- `login-timeout-seconds: 0` = **no timeout** (default). Set e.g. `60` to kick idle unauthenticated players.
+- Registration mismatches: after `max-registration-failures` the player is kicked and blocked for `registration-block-seconds`.
+
+## Protection before login
+Cancelled for unauthenticated players: movement (head rotation allowed), teleport, portals, block break/place,
+interaction, entity interaction, damage dealt and received, mob targeting, item drop/pickup/consume/swap, buckets,
+beds, vehicles, hunger, chat, all commands except `allowed-commands`, every inventory except the PIN keypad.
+A player with no session is treated as unauthenticated (fail-closed). NPC-plugin fake players (`NPC` metadata) are exempt.
+If the database cannot be opened, PinAuth refuses **all** logins instead of letting anyone in.
+
+## Compatibility notes
+**Paper** – uses Adventure components, `AsyncChatEvent`, `Inventory#getHolder(boolean)`; Paper only.
+**Geyser/Floodgate** – Bedrock is detected through `FloodgateApi#isFloodgatePlayer` (reflection, soft-depend). Without Floodgate a
+warning is logged and the Floodgate UUID convention is used. Accounts are keyed by UUID, never by name. Floodgate's username prefix
+(default `.`) is part of the stored name, so `Steve` (Java) and `.Steve` (Bedrock) are different accounts. Keep a prefix configured in
+Floodgate; without one, two accounts can share a name – admin commands then ask for the UUID. Set `allow-bedrock-players: false` to refuse Bedrock.
+**Online-mode** servers: Mojang authenticates Java players; the PIN is a second factor.
+**Offline-mode** servers: anyone can claim any Java name until the PIN is set. Keep `prevent-duplicate-login: true`, register your
+staff accounts first, and use a proxy/Floodgate setup you trust. PinAuth cannot prove who owns a Java username in offline mode.
+**Other plugins** – spawn/teleport-on-join plugins are blocked from teleporting unauthenticated players (by design).
+The keypad uses ordinary clicks (left/right/shift) so Bedrock tap input works; double-click events are ignored.
 
 ## Security notes (please read)
+- A six-digit PIN has only 1,000,000 combinations. It **cannot** match a strong password or Mojang/Microsoft authentication.
+  Protection comes from the attempt limit, persistent lockout, cooldown, and PBKDF2 (310k iterations default).
+- Hashes are PBKDF2-HMAC-SHA256 with a random 128-bit salt per PIN, plus (default) a secret **pepper** in `pepper.key` mixed in by HMAC.
+  A leaked `accounts.db` alone then cannot be brute-forced offline. **If `pepper.key` is lost, every PIN becomes invalid** (reset them
+  with `/pinreset`). Restrict file permissions; never share the file.
+- PINs and hashes are never logged, printed or sent in messages. The record's `toString()` omits the hash.
+- All SQL uses prepared statements; all database work runs on one dedicated thread.
+- No e-mail recovery is implemented (and none is simulated). Recovery is admin-only via `/pinreset`; a name alone never resets a PIN.
+- Not provided: IP-based rate limiting, 2FA. Combine with a proxy-level connection throttle if you expect distributed guessing.
 
-A six-digit PIN has only 1,000,000 possibilities. **A PIN-only system cannot match strong passwords or Minecraft's
-official account authentication.** The lockouts, cooldown and server-side secret make *online* guessing impractical, but
-if an attacker steals both `accounts.db` and `secret.key` they can recover PINs offline quickly, whatever hash is used.
-Keep those files private, restrict file access, and prefer online-mode for servers that need real account security.
-Email-based recovery is intentionally not implemented (it would need a real verification service).
+## Database
+`plugins/PinAuth/accounts.db`, table `accounts(uuid PK, username, pin_hash, status, registered_at, last_login, failed_count, lockout_until)`,
+index on `username COLLATE NOCASE`. Schema version is stored in `PRAGMA user_version`; migrations run automatically at startup
+(a database from a newer version is refused).
 
-## Troubleshooting
-
-- *"SQLite JDBC driver not found"*: your server build does not bundle `org.sqlite.JDBC`; use a current Paper build.
-- *Everyone is kicked with "Authentication is temporarily unavailable"*: see the SEVERE line in the console at startup.
-- *Players cannot be reset after moving the database*: copy `secret.key` along with `accounts.db`.
-
-See `docs/TESTING.md` for the manual test checklist.
+## Project layout
+`src/main/java/com/kodeshi/pinauth/` – `PinAuthPlugin`, `AuthManager` (all logic), `PinGui`, `Database`, `PinHasher`, `Settings`,
+listeners (`ConnectionListener`, `GuiListener`, `ProtectionListener`), commands (`AdminCommands`, `PlayerCommands`), `FloodgateHook`.
+See `TESTING.md` for the test checklist.
