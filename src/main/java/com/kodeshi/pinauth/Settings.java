@@ -67,7 +67,7 @@ public final class Settings {
 
     public final List<String> warnings;
 
-    private final Map<String, Set<String>> ipExemptions;
+    private final Set<String> trustedIps;
     private final Map<String, String> messages;
     private final Map<String, String> titles;
     private final Map<String, Material> materials;
@@ -103,23 +103,24 @@ public final class Settings {
         this.usePepper = c.getBoolean("security.use-pepper", true);
 
         this.ipExemptionsEnabled = c.getBoolean("ip-exemptions.enabled", false);
-        Map<String, Set<String>> ips = new LinkedHashMap<>();
-        for (String entry : c.getStringList("ip-exemptions.entries")) {
-            int eq = entry.lastIndexOf('=');
-            String who = eq > 0 ? entry.substring(0, eq).trim().toLowerCase(Locale.ROOT) : "";
-            String ip = eq > 0 ? entry.substring(eq + 1).trim() : "";
-            boolean bad = who.isEmpty() || ip.isEmpty();
-            if (!bad && (ip.equals("127.0.0.1") || ip.equals("::1") || ip.equals("0.0.0.0"))) {
-                w.add("ip-exemptions: '" + entry + "' ignored (loopback/wildcard addresses would exempt everyone behind a proxy)");
+        boolean allowLoopback = c.getBoolean("ip-exemptions.allow-loopback", false);
+        Set<String> ips = new HashSet<>();
+        for (String raw : c.getStringList("ip-exemptions.ips")) {
+            String ip = raw.trim();
+            if (ip.isEmpty()) {
                 continue;
             }
-            if (bad) {
-                w.add("ip-exemptions: '" + entry + "' ignored (use name-or-uuid=ip)");
-                continue;
+            boolean loopback = ip.equals("127.0.0.1") || ip.equals("::1") || ip.equals("0:0:0:0:0:0:0:1");
+            if (ip.equals("0.0.0.0") || !ip.matches("[0-9a-fA-F:.]+")) {
+                w.add("ip-exemptions.ips: '" + raw + "' ignored (not a valid IP address)");
+            } else if (loopback && !allowLoopback) {
+                w.add("ip-exemptions.ips: '" + raw + "' ignored (loopback exempts everyone connecting through Geyser/a proxy on this machine; "
+                        + "set ip-exemptions.allow-loopback: true only if you really want that)");
+            } else {
+                ips.add(ip);
             }
-            ips.computeIfAbsent(who, k -> new HashSet<>()).add(ip);
         }
-        this.ipExemptions = Collections.unmodifiableMap(ips);
+        this.trustedIps = Collections.unmodifiableSet(ips);
 
         Set<String> cmds = new HashSet<>();
         for (String s : c.getStringList("allowed-commands")) {
@@ -283,14 +284,9 @@ public final class Settings {
         return LEGACY.deserialize(messages.getOrDefault("prefix", "") + raw(key, kv));
     }
 
-    /** True only if the feature is on AND the account (name or UUID) is listed with exactly this IP. */
-    public boolean isIpExempt(java.util.UUID uuid, String name, String ip) {
-        if (!ipExemptionsEnabled || ip == null) {
-            return false;
-        }
-        Set<String> byName = ipExemptions.get(name.toLowerCase(Locale.ROOT));
-        Set<String> byUuid = ipExemptions.get(uuid.toString().toLowerCase(Locale.ROOT));
-        return (byName != null && byName.contains(ip)) || (byUuid != null && byUuid.contains(ip));
+    /** True if IP exemptions are enabled and this exact IP is listed (the account is irrelevant). */
+    public boolean isIpExempt(String ip) {
+        return ipExemptionsEnabled && ip != null && trustedIps.contains(ip);
     }
 
     public String lengthText() {
