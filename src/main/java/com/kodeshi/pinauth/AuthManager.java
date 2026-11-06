@@ -147,12 +147,12 @@ public final class AuthManager {
             old.wipe();
         }
         String ip = p.getAddress() == null ? null : p.getAddress().getAddress().getHostAddress();
-        if (st.isIpExempt(s.uuid, s.name, ip)) {
+        if (st.isIpExempt(ip)) {
             s.authenticated = true;
             s.flow = Flow.NONE;
             logDbFailure(db.recordSuccess(s.uuid, s.name, System.currentTimeMillis()), "recording a trusted-IP login");
             p.sendMessage(st.msg("ip-exempt-login"));
-            plugin.getLogger().info(s.name + " (" + s.uuid + ") logged in through a trusted-IP exemption.");
+            plugin.getLogger().info(s.name + " (" + s.uuid + ") logged in through a trusted-IP exemption (" + ip + ").");
             return;
         }
         p.sendMessage(st.msg(s.flow == Flow.LOGIN ? "welcome-login" : "welcome-register",
