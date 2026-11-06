@@ -45,16 +45,19 @@ registration-block-seconds: 300
 allowed-commands:
   - pin
 
-# Trusted-IP auto login. A player is skipped past the PIN screen ONLY when BOTH the
-# account (name or UUID) AND the connecting IP match one entry. Format: "name-or-uuid=ip".
-# Floodgate names keep their prefix (".Steve=1.2.3.4"). Several entries per player are fine.
-# WARNING: never list 127.0.0.1 / a proxy or Geyser IP - that would exempt everybody behind it.
-# On offline-mode servers a name + shared IP (same home/NAT) is weak; prefer UUID entries.
+# Trusted-IP auto login. ANY player connecting from a listed IP skips the PIN screen
+# (no PIN registration or login needed). The account name/UUID is NOT checked.
+# WARNING: only list IPs that belong to people you trust, and that nobody else shares
+# (public Wi-Fi, school/office networks, VPNs and mobile data/CGNAT are risky). Anyone who
+# can join from that IP while using any player name gets logged in as that name.
+# Geyser/proxy: if Bedrock players connect through Geyser on the same machine or through a
+# proxy, their IP is the proxy's IP - listing it would exempt ALL of them.
 ip-exemptions:
   enabled: false
-  entries: []
-  #  - "Steve=203.0.113.5"
-  #  - "123e4567-e89b-12d3-a456-426614174000=198.51.100.7"
+  allow-loopback: false     # 127.0.0.1 / ::1 are ignored unless this is true
+  ips: []
+  #  - "203.0.113.5"
+  #  - "198.51.100.7"
 
 security:
   # PBKDF2-HMAC-SHA256 iterations for NEW hashes (100000 - 5000000).
