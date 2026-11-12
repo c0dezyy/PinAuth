@@ -30,6 +30,7 @@ public final class Settings {
         DEFAULT_MATERIALS.put("delete", Material.ORANGE_CONCRETE);
         DEFAULT_MATERIALS.put("confirm", Material.LIME_CONCRETE);
         DEFAULT_MATERIALS.put("cancel", Material.BARRIER);
+        DEFAULT_MATERIALS.put("admin", Material.NETHER_STAR);
         DEFAULT_MATERIALS.put("filler", Material.BLACK_STAINED_GLASS_PANE);
         DEFAULT_MATERIALS.put("pin-empty", Material.GRAY_STAINED_GLASS_PANE);
         DEFAULT_MATERIALS.put("pin-filled", Material.LIME_STAINED_GLASS_PANE);
@@ -55,6 +56,8 @@ public final class Settings {
     public final boolean rejectWeakPins;
     public final boolean usePepper;
     public final boolean ipExemptionsEnabled;
+    public final boolean adminOnlyActive;
+    public final String adminPin;
     public final Set<String> allowedCommands;
 
     public final int slotHead;
@@ -63,6 +66,7 @@ public final class Settings {
     public final int slotDelete;
     public final int slotConfirm;
     public final int slotCancel;
+    public final int slotAdmin;
     public final int[] slotDigits;
 
     public final List<String> warnings;
@@ -122,6 +126,27 @@ public final class Settings {
         }
         this.trustedIps = Collections.unmodifiableSet(ips);
 
+        boolean adminEnabled = c.getBoolean("admin-only.enabled", true);
+        String adminValue = c.getString("admin-only.pin", "");
+        adminValue = adminValue == null ? "" : adminValue.trim();
+        if (adminEnabled && adminValue.matches("[0-9]+") && adminValue.length() < min) {
+            StringBuilder padded = new StringBuilder(adminValue);
+            while (padded.length() < min) {
+                padded.insert(0, '0');
+            }
+            adminValue = padded.toString();
+            w.add("admin-only.pin looks like YAML turned it into a number and lost leading zeros; "
+                    + "write it in quotes (\"012345\" style). Leading zeros were restored.");
+        }
+        boolean adminOk = adminEnabled && adminValue.matches("[0-9]+")
+                && adminValue.length() >= min && adminValue.length() <= max;
+        if (adminEnabled && !adminOk) {
+            w.add("admin-only.pin must be digits only, between min-pin-length and max-pin-length long; "
+                    + "the Admin only button is disabled");
+        }
+        this.adminOnlyActive = adminOk;
+        this.adminPin = adminOk ? adminValue : "";
+
         Set<String> cmds = new HashSet<>();
         for (String s : c.getStringList("allowed-commands")) {
             String t = s.trim().toLowerCase(Locale.ROOT);
@@ -157,6 +182,7 @@ public final class Settings {
         int delete = c.getInt("gui.slots.delete", 50);
         int confirm = c.getInt("gui.slots.confirm", 53);
         int cancel = c.getInt("gui.slots.cancel", 45);
+        int admin = c.getInt("gui.slots.admin", 46);
         List<Integer> digitList = c.getIntegerList("gui.slots.digits");
         int[] digits = new int[10];
         boolean layoutOk = digitList.size() == 10;
@@ -164,7 +190,7 @@ public final class Settings {
             for (int i = 0; i < 10; i++) {
                 digits[i] = digitList.get(i);
             }
-            layoutOk = validLayout(head, pinStart, max, clear, delete, confirm, cancel, digits);
+            layoutOk = validLayout(head, pinStart, max, clear, delete, confirm, cancel, admin, digits);
         }
         if (!layoutOk) {
             w.add("gui.slots is invalid (need 10 digit slots, all within 0-53, no overlaps); using the default layout");
@@ -174,8 +200,9 @@ public final class Settings {
             delete = 50;
             confirm = 53;
             cancel = 45;
+            admin = 46;
             digits = DEFAULT_DIGIT_SLOTS.clone();
-            if (!validLayout(head, pinStart, max, clear, delete, confirm, cancel, digits)) {
+            if (!validLayout(head, pinStart, max, clear, delete, confirm, cancel, admin, digits)) {
                 pinStart = 9; // only reachable for unusual lengths; still collision-free
             }
         }
@@ -185,6 +212,7 @@ public final class Settings {
         this.slotDelete = delete;
         this.slotConfirm = confirm;
         this.slotCancel = cancel;
+        this.slotAdmin = admin;
         this.slotDigits = digits;
 
         // ---- text
@@ -199,7 +227,7 @@ public final class Settings {
     }
 
     private static boolean validLayout(int head, int pinStart, int pinLen, int clear, int delete,
-                                       int confirm, int cancel, int[] digits) {
+                                       int confirm, int cancel, int admin, int[] digits) {
         Set<Integer> used = new HashSet<>();
         List<Integer> all = new ArrayList<>();
         all.add(head);
@@ -207,6 +235,7 @@ public final class Settings {
         all.add(delete);
         all.add(confirm);
         all.add(cancel);
+        all.add(admin);
         for (int d : digits) {
             all.add(d);
         }

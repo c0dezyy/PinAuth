@@ -21,6 +21,7 @@ public final class Session {
     public boolean busy;               // hashing / database work in flight
     public boolean suppressClose;      // set while the plugin itself opens/closes the GUI
     public boolean leaving;            // kick already issued
+    public boolean adminVerified;      // admin PIN accepted during registration
     public int failedCount;
     public int regFailures;
     public int closeCount;

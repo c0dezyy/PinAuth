@@ -41,6 +41,17 @@ reject-weak-pins: false
 max-registration-failures: 5
 registration-block-seconds: 300
 
+# "Admin only" button on the register and login keypads.
+#  - Register: an account that is OP (or has pinauth.admin) must first type the admin PIN and press
+#    "Admin only"; until then it cannot create its own PIN. A wrong code counts as a failed registration.
+#  - Login: typing the admin PIN and pressing "Admin only" logs that OP account in without its own PIN
+#    (a wrong code counts as a normal failed login attempt, same lockout).
+# Non-admin accounts can never get in with it. Write the PIN in quotes. CHANGE IT and keep this file private:
+# anyone who knows it AND joins with an operator's name gets that operator's session.
+admin-only:
+  enabled: true
+  pin: "019019"
+
 # Commands unauthenticated players may use (lowercase, without "/").
 allowed-commands:
   - pin
@@ -85,6 +96,7 @@ gui:
     delete: 50
     confirm: 53
     cancel: 45
+    admin: 46
   materials:
     head: PLAYER_HEAD
     digit: WHITE_CONCRETE
@@ -92,6 +104,7 @@ gui:
     delete: ORANGE_CONCRETE
     confirm: LIME_CONCRETE
     cancel: BARRIER
+    admin: NETHER_STAR
     filler: BLACK_STAINED_GLASS_PANE
     pin-empty: GRAY_STAINED_GLASS_PANE
     pin-filled: LIME_STAINED_GLASS_PANE
@@ -167,5 +180,9 @@ messages:
   gui-confirm: "&a&lConfirm"
   gui-cancel-login: "&4&lLeave server"
   gui-cancel-change: "&4&lCancel"
+  gui-admin: "&d&lAdmin only"
+  admin-verified-register: "&dAdmin verified. Now create your own PIN."
+  admin-required: "&cAdmin accounts must first enter the admin PIN and press &dAdmin only&c."
+  admin-pin-wrong: "&cWrong admin PIN."
   gui-pin-empty: "&7Digit {n}: &8_"
   gui-pin-filled: "&aDigit {n}: &f*"

@@ -53,6 +53,9 @@ public final class PinGui {
         inv.setItem(st.slotConfirm, item(st.material("confirm"), st.text("gui-confirm"), null));
         inv.setItem(st.slotCancel, item(st.material("cancel"),
                 st.text(s.authenticated ? "gui-cancel-change" : "gui-cancel-login"), null));
+        if (st.adminOnlyActive && (s.flow == Flow.LOGIN || s.flow == Flow.REGISTER)) {
+            inv.setItem(st.slotAdmin, item(st.material("admin"), st.text("gui-admin"), null));
+        }
         renderInput(st, inv, s.input.length());
         return inv;
     }

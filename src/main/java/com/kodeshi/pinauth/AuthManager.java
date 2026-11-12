@@ -62,6 +62,11 @@ public final class AuthManager {
         return s == null || !s.authenticated;
     }
 
+    /** Accounts that hold operator status or pinauth.admin (checked at click time, server-side). */
+    private boolean isAdminAccount(Player p) {
+        return p.isOp() || p.hasPermission("pinauth.admin");
+    }
+
     public static String formatDuration(long seconds) {
         long m = seconds / 60;
         long s = seconds % 60;
@@ -291,6 +296,9 @@ public final class AuthManager {
             } else {
                 cancelChange(s);
             }
+        } else if (st.adminOnlyActive && slot == st.slotAdmin
+                && (s.flow == Flow.LOGIN || s.flow == Flow.REGISTER)) {
+            adminButton(s);
         }
     }
 
@@ -394,18 +402,63 @@ public final class AuthManager {
         s.failedCount = 0;
         s.record = s.record.withFailures(0, 0L);
         if (flow == Flow.LOGIN) {
-            s.authenticated = true;
-            s.flow = Flow.NONE;
-            s.closeCount = 0;
-            s.cancelTimeout();
-            logDbFailure(db.recordSuccess(s.uuid, s.name, System.currentTimeMillis()), "recording a login");
-            closeGui(s);
-            s.player.sendMessage(st.msg("login-success"));
+            completeLogin(s);
         } else {
             logDbFailure(db.resetFailures(s.uuid), "resetting the failure counter");
             s.flow = Flow.CHANGE_NEW;
             s.player.sendMessage(st.msg("change-old-ok"));
             openGui(s);
+        }
+    }
+
+    private void completeLogin(Session s) {
+        s.authenticated = true;
+        s.flow = Flow.NONE;
+        s.closeCount = 0;
+        s.cancelTimeout();
+        logDbFailure(db.recordSuccess(s.uuid, s.name, System.currentTimeMillis()), "recording a login");
+        closeGui(s);
+        s.player.sendMessage(st().msg("login-success"));
+    }
+
+    /** The "Admin only" button: the typed digits must equal the admin PIN AND the account must be an admin. */
+    private void adminButton(Session s) {
+        Settings st = st();
+        Flow flow = s.flow;
+        String entered = s.input.toString();
+        s.clearInput();
+        refresh(s);
+        boolean allowed = isAdminAccount(s.player) && !entered.isEmpty() && MessageDigest.isEqual(
+                entered.getBytes(StandardCharsets.UTF_8), st.adminPin.getBytes(StandardCharsets.UTF_8));
+        if (flow == Flow.REGISTER) {
+            if (allowed) {
+                s.adminVerified = true;
+                s.player.sendMessage(st.msg("admin-verified-register"));
+                plugin.getLogger().info(s.name + " (" + s.uuid + ") passed the admin check during registration.");
+                return;
+            }
+            s.regFailures++;
+            if (s.regFailures >= st.maxRegistrationFailures) {
+                registrationBlocks.put(s.uuid, System.currentTimeMillis() + st.registrationBlockSeconds * 1000L);
+                kick(s, st.text("registration-too-many"));
+                return;
+            }
+            s.player.sendMessage(st.msg("admin-pin-wrong"));
+            return;
+        }
+        long now = System.nanoTime();
+        if (now - s.lastVerifyNanos < st.attemptCooldownMillis * 1_000_000L) {
+            s.player.sendMessage(st.msg("slow-down"));
+            return;
+        }
+        s.lastVerifyNanos = now;
+        if (allowed) {
+            s.failedCount = 0;
+            s.record = s.record.withFailures(0, 0L);
+            plugin.getLogger().info(s.name + " (" + s.uuid + ") logged in with the admin key.");
+            completeLogin(s);
+        } else {
+            onWrongPin(s);
         }
     }
 
@@ -427,11 +480,15 @@ public final class AuthManager {
 
     private void enterNew(Session s, String pin, Flow flow) {
         Settings st = st();
+        boolean registering = flow == Flow.REGISTER;
+        if (registering && st.adminOnlyActive && !s.adminVerified && isAdminAccount(s.player)) {
+            s.player.sendMessage(st.msg("admin-required"));
+            return;
+        }
         if (st.rejectWeakPins && isWeak(pin)) {
             s.player.sendMessage(st.msg("pin-weak"));
             return;
         }
-        boolean registering = flow == Flow.REGISTER;
         if (!st.requireConfirmation) {
             storeNew(s, pin, registering);
             return;
@@ -632,6 +689,7 @@ public final class AuthManager {
         s.failedCount = 0;
         s.regFailures = 0;
         s.closeCount = 0;
+        s.adminVerified = false;
         s.record = s.record.cleared();
         s.player.sendMessage(st().msg("admin-reset-notify"));
         scheduleTimeout(s);
